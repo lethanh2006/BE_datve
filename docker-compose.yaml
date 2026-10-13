@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: datve-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-datve_db}
+      POSTGRES_USER: ${DB_USERNAME:-datve_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-local_dev_only_12345}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
