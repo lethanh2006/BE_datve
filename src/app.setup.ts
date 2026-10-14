@@ -36,6 +36,8 @@ export function configureApp(app: NestExpressApplication) {
       .split(',')
       .map((o) => o.trim())
       .filter(Boolean),
+    // Cho trình duyệt đọc header Date để FE bù lệch đồng hồ khi đếm ngược thời gian giữ ghế
+    exposedHeaders: ['Date'],
   });
 
   app.useGlobalPipes(

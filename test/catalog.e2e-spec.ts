@@ -258,6 +258,7 @@ describe('Danh mục sự kiện (e2e)', () => {
       'http://localhost:5173',
     );
     expect(res.headers['x-powered-by']).toBeUndefined();
+    expect(res.headers['access-control-expose-headers']).toContain('Date');
   });
 
   it('JSON sai cú pháp trả lỗi 400 theo định dạng chung', async () => {
