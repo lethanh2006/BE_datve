@@ -305,7 +305,11 @@ export class PaymentService {
           [paymentId, result.providerReference],
         );
         await em.query(
-          `UPDATE bookings SET status = 'CONFIRMED', updated_at = now() WHERE id = $1`,
+          `UPDATE bookings
+           SET status = 'CONFIRMED',
+               ticket_code = COALESCE(ticket_code, substr(replace(gen_random_uuid()::text, '-', ''), 1, 16)),
+               updated_at = now()
+           WHERE id = $1`,
           [bookingId],
         );
         await em.query(

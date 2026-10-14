@@ -28,6 +28,10 @@ export class BookingResponse {
   totalAmount: number;
   expiresAt: Date | null;
   createdAt: Date;
+  /** Mã vé (nội dung QR), chỉ có khi đơn đã xác nhận */
+  ticketCode: string | null;
+  /** Thời điểm soát vé tại cửa, null nếu chưa vào */
+  checkedInAt: Date | null;
   /** Chỉ có trong API quản trị */
   customer?: CustomerResponse;
 }

@@ -19,6 +19,8 @@ interface BookingRow {
   totalAmount: string;
   expiresAt: Date | null;
   createdAt: Date;
+  ticketCode: string | null;
+  checkedInAt: Date | null;
   userId: string;
   userEmail: string;
   userFullName: string;
@@ -47,6 +49,7 @@ export async function fetchBookings(
               s.start_time AS "startTime", s.end_time AS "endTime",
               ${effectiveStatusSql('b')} AS status,
               b.total_amount AS "totalAmount", b.expires_at AS "expiresAt", b.created_at AS "createdAt",
+              b.ticket_code AS "ticketCode", b.checked_in_at AS "checkedInAt",
               u.id AS "userId", u.email AS "userEmail", u.full_name AS "userFullName"
        FROM bookings b
        JOIN showtimes s ON s.id = b.showtime_id
@@ -97,6 +100,8 @@ export async function fetchBookings(
       totalAmount: Number(r.totalAmount),
       expiresAt: r.expiresAt,
       createdAt: r.createdAt,
+      ticketCode: r.ticketCode,
+      checkedInAt: r.checkedInAt,
     };
     if (includeCustomer) {
       booking.customer = {

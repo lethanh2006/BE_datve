@@ -14,6 +14,7 @@ import {
   BookingListQuery,
 } from './dto/booking-list.query';
 import { BookingResponse } from './dto/booking.response';
+import { CheckInResponse, CheckInResult } from './dto/check-in.dto';
 import { CreateBookingRequest } from './dto/create-booking.request';
 
 /** Số đơn chưa thanh toán (còn hạn) tối đa của mỗi người, chống giữ ghế hàng loạt. */
@@ -280,6 +281,47 @@ export class BookingService {
       }
     });
     return (await this.getOne(id, user.role === Role.ADMIN))!;
+  }
+
+  /**
+   * Soát vé tại cửa: đánh dấu đơn đã vào lần đầu. Quét lại vé đã vào trả ALREADY_CHECKED_IN
+   * (không phải lỗi) để nhân viên biết vé này đã được dùng.
+   */
+  async checkIn(ticketCode: string): Promise<CheckInResponse> {
+    const { id, result } = await this.dataSource.transaction(
+      async (em): Promise<{ id: string; result: CheckInResult }> => {
+        const [row] = await em.query<
+          { id: string; status: string; checkedInAt: Date | null }[]
+        >(
+          `SELECT id, status, checked_in_at AS "checkedInAt"
+           FROM bookings WHERE ticket_code = $1 FOR UPDATE`,
+          [ticketCode],
+        );
+        if (!row) {
+          throw new ApiException(
+            HttpStatus.NOT_FOUND,
+            'TICKET_NOT_FOUND',
+            'Mã vé không hợp lệ',
+          );
+        }
+        if (row.status !== 'CONFIRMED') {
+          throw new ApiException(
+            HttpStatus.CONFLICT,
+            'TICKET_INVALID',
+            'Vé không còn hiệu lực',
+          );
+        }
+        if (row.checkedInAt)
+          return { id: row.id, result: 'ALREADY_CHECKED_IN' };
+
+        await em.query(
+          `UPDATE bookings SET checked_in_at = now(), updated_at = now() WHERE id = $1`,
+          [row.id],
+        );
+        return { id: row.id, result: 'CHECKED_IN' };
+      },
+    );
+    return { result, booking: (await this.getOne(Number(id), true))! };
   }
 
   /** Job nền: chuyển các đơn PENDING quá hạn sang EXPIRED và nhả ghế. Trả về số đơn đã xử lý. */

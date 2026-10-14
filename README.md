@@ -6,6 +6,7 @@ Backend đặt vé sự kiện, chuyển đổi từ bản Spring Boot (`BE_Java
 - Đăng ký / đăng nhập bằng JWT, phân quyền `USER` / `ADMIN`
 - Giữ ghế 5 phút, chống đặt trùng ghế khi nhiều người tranh cùng lúc
 - Thanh toán có `Idempotency-Key` (cổng thanh toán giả, dễ thay bằng cổng thật)
+- Vé điện tử có mã `ticketCode` (nội dung QR, 64-bit ngẫu nhiên) và API soát vé tại cửa
 - API quản trị: sự kiện, suất diễn + sinh ghế, danh sách đơn, thống kê doanh thu
 
 ## Chạy dự án
@@ -73,6 +74,7 @@ Mọi route yêu cầu `Authorization: Bearer <token>` trừ các route đánh d
 | POST | `/api/admin/showtimes/:id/seats` | ADMIN | Thêm ghế cho suất diễn |
 | DELETE | `/api/admin/showtimes/:id` | ADMIN | Xoá suất diễn chưa có đơn |
 | GET | `/api/admin/bookings?status=&q=` | ADMIN | Mọi đơn kèm thông tin khách |
+| POST | `/api/admin/bookings/check-in` | ADMIN | Soát vé: body `{"ticketCode":"..."}` (mã trong QR), quét lại trả `ALREADY_CHECKED_IN` |
 | GET | `/api/admin/stats` | ADMIN | Doanh thu, ghế đã bán, thống kê 14 ngày, top sự kiện |
 
 ### Vòng đời đơn đặt vé
