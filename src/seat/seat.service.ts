@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { ApiException } from '../common/exception/api.exception';
 import { ShowtimeService } from '../showtime/showtime.service';
 import { SeatResponse } from './dto/seat.response';
+import { seatBookedSql, seatHeldSql } from './seat-availability.sql';
 import { SeatStatus } from './seat-status.enum';
 
 interface SeatStatusRow {
@@ -30,24 +31,14 @@ export class SeatService {
         `Không tìm thấy suất diễn có id ${showtimeId}`,
       );
     }
-    const rows: SeatStatusRow[] = await this.dataSource.query(
+    const rows = await this.dataSource.query<SeatStatusRow[]>(
       `SELECT s.id          AS "id",
               s.seat_code   AS "seatCode",
               s.category    AS "category",
               s.face_value  AS "faceValue",
               CASE
-                  WHEN EXISTS (
-                      SELECT 1 FROM booking_seats bs
-                      WHERE bs.seat_id = s.id
-                        AND bs.reservation_status = 'BOOKED'
-                  ) THEN 'BOOKED'
-                  WHEN EXISTS (
-                      SELECT 1 FROM booking_seats bs
-                      JOIN bookings b ON b.id = bs.booking_id
-                      WHERE bs.seat_id = s.id
-                        AND bs.reservation_status = 'HELD'
-                        AND b.expires_at > now()
-                  ) THEN 'HELD'
+                  WHEN ${seatBookedSql('s')} THEN 'BOOKED'
+                  WHEN ${seatHeldSql('s')} THEN 'HELD'
                   ELSE 'AVAILABLE'
               END           AS "status"
        FROM seats s

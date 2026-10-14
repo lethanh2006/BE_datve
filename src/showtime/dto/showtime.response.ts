@@ -1,17 +1,11 @@
-import { Showtime } from '../showtime.entity';
-
 export class ShowtimeResponse {
   id: number;
   eventId: number;
   startTime: Date;
   endTime: Date;
-
-  static from(s: Showtime): ShowtimeResponse {
-    return {
-      id: Number(s.id),
-      eventId: Number(s.eventId),
-      startTime: s.startTime,
-      endTime: s.endTime,
-    };
-  }
+  totalSeats: number;
+  /** Số ghế chưa bị giữ hoặc bán tại thời điểm truy vấn */
+  availableSeats: number;
+  /** Giá vé thấp nhất (null nếu suất chưa có ghế) */
+  minPrice: number | null;
 }

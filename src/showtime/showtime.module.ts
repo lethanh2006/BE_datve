@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventModule } from '../event/event.module';
+import { AdminShowtimeController } from './admin-showtime.controller';
 import { ShowtimeController } from './showtime.controller';
-import { Showtime } from './showtime.entity';
 import { ShowtimeService } from './showtime.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Showtime]), EventModule],
-  controllers: [ShowtimeController],
+  imports: [EventModule],
+  controllers: [ShowtimeController, AdminShowtimeController],
   providers: [ShowtimeService],
   exports: [ShowtimeService],
 })

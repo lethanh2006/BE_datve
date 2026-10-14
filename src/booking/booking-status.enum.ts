@@ -11,3 +11,6 @@ export enum BookingSeatStatus {
   BOOKED = 'BOOKED',
   RELEASED = 'RELEASED',
 }
+
+/** Thời gian giữ ghế trước khi đơn tự hết hạn */
+export const HOLD_MINUTES = 5;
