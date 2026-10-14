@@ -15,6 +15,25 @@ export interface ApiErrorResponse {
   timestamp: string;
 }
 
+const CODE_BY_STATUS: Record<number, string> = {
+  [HttpStatus.BAD_REQUEST]: 'BAD_REQUEST',
+  [HttpStatus.UNAUTHORIZED]: 'UNAUTHORIZED',
+  [HttpStatus.FORBIDDEN]: 'FORBIDDEN',
+  [HttpStatus.NOT_FOUND]: 'NOT_FOUND',
+  [HttpStatus.METHOD_NOT_ALLOWED]: 'METHOD_NOT_ALLOWED',
+  [HttpStatus.CONFLICT]: 'CONFLICT',
+  [HttpStatus.PAYLOAD_TOO_LARGE]: 'PAYLOAD_TOO_LARGE',
+  [HttpStatus.TOO_MANY_REQUESTS]: 'TOO_MANY_REQUESTS',
+};
+
+/** Lấy message từ body của HttpException (có thể là chuỗi, đối tượng, hoặc mảng message của ValidationPipe). */
+function messageOf(body: string | object, fallback: string): string {
+  if (typeof body === 'string') return body;
+  const message = (body as { message?: string | string[] }).message;
+  if (Array.isArray(message)) return message.join('; ');
+  return message ?? fallback;
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -32,13 +51,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const body = exception.getResponse();
-      code = status === HttpStatus.NOT_FOUND ? 'NOT_FOUND' : 'BAD_REQUEST';
+      code = CODE_BY_STATUS[status] ?? `HTTP_${status}`;
       message =
-        typeof body === 'string'
-          ? body
-          : String(
-              (body as { message?: unknown }).message ?? exception.message,
-            );
+        status === HttpStatus.TOO_MANY_REQUESTS
+          ? 'Bạn thao tác quá nhanh, vui lòng thử lại sau'
+          : messageOf(body, exception.message);
     } else {
       this.logger.error(exception);
     }

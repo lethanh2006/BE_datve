@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module';
+import { HealthController } from './health/health.controller';
 import { BookingModule } from './booking/booking.module';
 import { EventModule } from './event/event.module';
 import { SeatModule } from './seat/seat.module';
@@ -22,10 +27,23 @@ import { ShowtimeModule } from './showtime/showtime.module';
         synchronize: false, // schema do migration SQL quản lý
       }),
     }),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          { ttl: 60_000, limit: Number(config.get('THROTTLE_LIMIT', 300)) },
+        ],
+        skipIf: () => config.get('THROTTLE_DISABLED') === 'true',
+      }),
+    }),
+    ScheduleModule.forRoot(),
+    AuthModule,
     EventModule,
     ShowtimeModule,
     SeatModule,
     BookingModule,
   ],
+  controllers: [HealthController],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

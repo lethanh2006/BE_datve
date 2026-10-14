@@ -1,20 +1,12 @@
-import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './common/exception/all-exceptions.filter';
+import { configureApp, setupSwagger } from './app.setup';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      exceptionFactory: (errors) =>
-        new BadRequestException(
-          errors.flatMap((e) => Object.values(e.constraints ?? {})).join('; '),
-        ),
-    }),
-  );
-  app.useGlobalFilters(new AllExceptionsFilter());
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  configureApp(app);
+  setupSwagger(app);
   await app.listen(process.env.PORT ?? 8080);
 }
-bootstrap();
+void bootstrap();
