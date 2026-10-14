@@ -15,22 +15,23 @@ export class SmtpTransport implements MailTransport {
   }
 }
 
-/** Không gửi đi đâu: ghi ra log và giữ lại trong `outbox` (dùng khi dev và test). */
+/** Không gửi đi đâu: ghi ra log và giữ lại trong `sent` (dùng khi dev và test). */
 export class LogTransport implements MailTransport {
+  readonly sent: MailMessage[] = [];
+
   constructor(
-    private readonly outbox: MailMessage[],
     private readonly logger: Logger,
     private readonly maxKept = 50,
   ) {}
 
   send(message: MailMessage & { from: string }): Promise<void> {
-    this.outbox.push({
+    this.sent.push({
       to: message.to,
       subject: message.subject,
       text: message.text,
       html: message.html,
     });
-    if (this.outbox.length > this.maxKept) this.outbox.shift();
+    if (this.sent.length > this.maxKept) this.sent.shift();
     this.logger.log(
       `[Email giả lập] tới ${message.to}: ${message.subject}\n${message.text}`,
     );

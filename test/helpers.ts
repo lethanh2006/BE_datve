@@ -19,7 +19,7 @@ export async function createTestApp(
 
 export async function resetDb(ds: DataSource) {
   await ds.query(
-    'TRUNCATE payments, booking_seats, bookings, seats, showtimes, events, users RESTART IDENTITY CASCADE',
+    'TRUNCATE email_outbox, password_reset_tokens, payments, booking_seats, bookings, seats, showtimes, events, users RESTART IDENTITY CASCADE',
   );
 }
 

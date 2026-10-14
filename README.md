@@ -93,6 +93,8 @@ Mọi route yêu cầu `Authorization: Bearer <token>` trừ các route đánh d
 | GET | `/api/admin/users?q=&role=&status=` | ADMIN | Người dùng kèm số đơn đã xác nhận và tổng chi tiêu |
 | PUT | `/api/admin/users/:id/role` | ADMIN | `{"role":"USER"\|"ADMIN"}`, có hiệu lực ngay với token đang dùng |
 | PUT | `/api/admin/users/:id/status` | ADMIN | `{"disabled":true}` khoá tài khoản và thu hồi phiên; không tự khoá/đổi quyền chính mình, luôn còn ít nhất một admin |
+| GET | `/api/admin/emails?status=` | ADMIN | Hàng đợi email (không kèm nội dung): đã gửi, đang thử lại, thất bại |
+| POST | `/api/admin/emails/:id/retry` | ADMIN | Gửi lại thư đã thất bại hẳn |
 | GET | `/api/admin/stats` | ADMIN | Doanh thu, ghế đã bán, thống kê 14 ngày, top sự kiện |
 
 ### Cập nhật ghế thời gian thực
@@ -119,7 +121,7 @@ PENDING ──thanh toán──▶ PAYMENT_PROCESSING ──thành công──�
 - Đổi/đặt lại mật khẩu tăng `token_version`. Guard kiểm tra phiên bản, vai trò và trạng thái khoá từ DB trên mỗi request; token cũ bị từ chối ngay.
 - Mã khôi phục ngẫu nhiên, có hạn 30 phút, chỉ lưu SHA-256 trong DB và chỉ dùng một lần. Mỗi tài khoản tối đa một email khôi phục/60 giây, kể cả khi gọi đồng thời. Mã mới hoặc đổi mật khẩu làm mất hiệu lực mã cũ.
 - Cấu hình `APP_URL`, `SMTP_URL`, `MAIL_FROM` để gửi email thật. Không có SMTP: dev ghi email giả lập ra log, production cảnh báo và bỏ qua gửi thư. Test luôn dùng hộp thư giả để không gửi email ra ngoài.
-- Email vé/hoàn tiền chỉ gửi sau giao dịch thành công, gọi lại không gửi trùng. Gửi thư hiện là best-effort trong tiến trình, chưa có hàng đợi bền vững hay tự thử lại khi SMTP lỗi; lỗi thư không làm thất bại đặt vé/hoàn tiền.
+- Email vé/hoàn tiền chỉ được xếp hàng sau giao dịch thành công, gọi lại không gửi trùng. Mọi email đi qua **hàng đợi bền vững** (bảng `email_outbox`, V7): ghi vào DB rồi gửi ngay, SMTP lỗi thì worker (10 giây/lần) thử lại sau 1 phút, 5 phút, 15 phút, 1 giờ rồi đánh dấu `FAILED` (admin gửi lại được). Nhiều instance không gửi trùng (`FOR UPDATE SKIP LOCKED` + thời gian thuê); cơ chế là at-least-once. Nội dung thư bị xoá khỏi DB ngay khi gửi xong, lỗi thư không bao giờ làm thất bại đặt vé/hoàn tiền.
 
 ### Hoàn vé
 

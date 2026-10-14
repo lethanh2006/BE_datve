@@ -100,6 +100,8 @@ describe('Hoàn vé (e2e)', () => {
       })
       .send({})
       .expect(201);
+    // Email xác nhận vé được gửi bất đồng bộ qua hàng đợi: chờ nó tới rồi mới xoá để không lẫn vào email hoàn tiền
+    await waitFor(() => mail.outbox.length === 1);
     mail.outbox.length = 0;
     return { show, user, booking };
   }
