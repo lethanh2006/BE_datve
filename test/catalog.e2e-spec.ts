@@ -270,3 +270,35 @@ describe('Danh mục sự kiện (e2e)', () => {
     expect(res.body.code).toBe('BAD_REQUEST');
   });
 });
+
+describe('Mã yêu cầu (e2e)', () => {
+  let app: NestExpressApplication;
+
+  beforeAll(async () => ({ app } = await createTestApp()));
+  afterAll(() => app.close());
+
+  it('mỗi response có X-Request-Id; id hợp lệ do client gửi được giữ nguyên, id lạ bị thay', async () => {
+    const generated = await request(app.getHttpServer())
+      .get('/api/events')
+      .expect(200);
+    expect(generated.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+
+    const kept = await request(app.getHttpServer())
+      .get('/api/events')
+      .set('X-Request-Id', 'trace-abc-123456')
+      .expect(200);
+    expect(kept.headers['x-request-id']).toBe('trace-abc-123456');
+
+    const replaced = await request(app.getHttpServer())
+      .get('/api/events')
+      .set('X-Request-Id', 'id co khoang trang')
+      .expect(200);
+    expect(replaced.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+
+    // cả response lỗi cũng có
+    const error = await request(app.getHttpServer())
+      .get('/api/events/abc')
+      .expect(400);
+    expect(error.headers['x-request-id']).toBeDefined();
+  });
+});

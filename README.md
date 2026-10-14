@@ -53,6 +53,7 @@ npm run start:dev           # http://localhost:8080
 | `SMTP_URL` | trống | Kết nối SMTP, ví dụ `smtps://user:pass@smtp.example.com:465` |
 | `MAIL_FROM` | `ĐặtVé <no-reply@datve.local>` | Địa chỉ gửi thư; dùng địa chỉ đã xác minh khi gửi thật |
 | `REFUND_WINDOW_HOURS` | `24` | Hạn hoàn vé tính lùi từ giờ diễn; số từ 0 đến 87600 |
+| `LOG_REQUESTS` | `true` | Ghi log truy cập mỗi request (không kèm query); response luôn có `X-Request-Id`, client gửi id hợp lệ thì giữ nguyên |
 | `SEAT_STREAM_MAX_CLIENTS` | `5000` | Số kết nối SSE theo dõi ghế tối đa mỗi instance, vượt thì trả 503 |
 
 ## API
