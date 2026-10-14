@@ -24,10 +24,10 @@ const SELECT_EVENT = `
   SELECT e.id, e.name, e.description, e.venue,
          e.image_url AS "imageUrl", e.category,
          (SELECT min(s.start_time) FROM showtimes s
-           WHERE s.event_id = e.id AND s.start_time > now()) AS "nextShowtime",
+           WHERE s.event_id = e.id AND s.start_time > now() AND s.cancelled_at IS NULL) AS "nextShowtime",
          (SELECT min(se.face_value) FROM seats se
             JOIN showtimes s ON s.id = se.showtime_id
-           WHERE s.event_id = e.id AND s.start_time > now()) AS "minPrice"
+           WHERE s.event_id = e.id AND s.start_time > now() AND s.cancelled_at IS NULL) AS "minPrice"
   FROM events e`;
 
 const toResponse = (r: EventRow): EventResponse => ({

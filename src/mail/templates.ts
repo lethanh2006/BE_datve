@@ -138,3 +138,32 @@ ${button(p.link, 'Xem chi tiết')}`,
     ),
   };
 }
+
+export function showtimeCancelledEmail(
+  p: BookingMailData & { refund: number; reason: string },
+): Template {
+  return {
+    subject: `Suất diễn đã bị huỷ - ${p.bookingCode}`,
+    text: [
+      `Xin chào ${p.name},`,
+      '',
+      `Rất tiếc, suất diễn "${p.eventName}" (${formatDateTime(p.startTime)}) tại ${p.venue} đã bị huỷ.`,
+      `Lý do: ${p.reason}`,
+      '',
+      `Vé ${p.bookingCode} đã được huỷ và chúng tôi đã hoàn lại ${formatVnd(p.refund)} vào phương thức thanh toán ban đầu.`,
+      '',
+      `Chi tiết: ${p.link}`,
+      '',
+      'Chân thành xin lỗi bạn vì sự bất tiện này.',
+    ].join('\n'),
+    html: layout(
+      'Suất diễn đã bị huỷ',
+      `<p>Xin chào ${escapeHtml(p.name)},</p>
+<p>Rất tiếc, suất diễn <b>${escapeHtml(p.eventName)}</b> (${escapeHtml(formatDateTime(p.startTime))}) tại ${escapeHtml(p.venue)} đã bị huỷ.</p>
+<p><b>Lý do:</b> ${escapeHtml(p.reason)}</p>
+<p>Vé <b>${escapeHtml(p.bookingCode)}</b> đã được huỷ và chúng tôi đã hoàn lại <b>${escapeHtml(formatVnd(p.refund))}</b> vào phương thức thanh toán ban đầu.</p>
+${button(p.link, 'Xem chi tiết')}
+<p style="color:#5f6684;font-size:13px">Chân thành xin lỗi bạn vì sự bất tiện này.</p>`,
+    ),
+  };
+}

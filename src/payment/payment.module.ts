@@ -9,6 +9,7 @@ import { PaymentService } from './payment.service';
 @Module({
   imports: [BookingModule],
   controllers: [PaymentController],
+  exports: [PaymentService],
   providers: [
     PaymentService,
     PaymentRecoveryService,

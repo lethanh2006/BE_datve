@@ -23,6 +23,8 @@ interface BookingRow {
   ticketCode: string | null;
   checkedInAt: Date | null;
   refundedAt: Date | null;
+  showtimeCancelledAt: Date | null;
+  showtimeCancelReason: string | null;
   userId: string;
   userEmail: string;
   userFullName: string;
@@ -55,6 +57,7 @@ export async function fetchBookings(
     em.query<BookingRow[]>(
       `SELECT b.id, b.showtime_id AS "showtimeId", e.id AS "eventId", e.name AS "eventName", e.venue,
               s.start_time AS "startTime", s.end_time AS "endTime",
+              s.cancelled_at AS "showtimeCancelledAt", s.cancel_reason AS "showtimeCancelReason",
               ${effectiveStatusSql('b')} AS status,
               b.total_amount AS "totalAmount", b.expires_at AS "expiresAt", b.created_at AS "createdAt",
               b.ticket_code AS "ticketCode", b.checked_in_at AS "checkedInAt",
@@ -119,6 +122,8 @@ export async function fetchBookings(
           ? policy.deadline(r.startTime)
           : null,
       refundedAt: r.refundedAt,
+      showtimeCancelledAt: r.showtimeCancelledAt,
+      showtimeCancelReason: r.showtimeCancelReason,
     };
     if (includeCustomer) {
       booking.customer = {

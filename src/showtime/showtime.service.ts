@@ -23,14 +23,18 @@ interface ShowtimeRow {
   totalSeats: number;
   availableSeats: number;
   minPrice: string | null;
+  cancelledAt: Date | null;
+  cancelReason: string | null;
 }
 
 const SELECT_SHOWTIME = `
   SELECT s.id, s.event_id AS "eventId", s.start_time AS "startTime", s.end_time AS "endTime",
          (SELECT count(*)::int FROM seats se WHERE se.showtime_id = s.id) AS "totalSeats",
-         (SELECT count(*)::int FROM seats se
-           WHERE se.showtime_id = s.id AND NOT ${seatTakenSql('se')}) AS "availableSeats",
-         (SELECT min(se.face_value) FROM seats se WHERE se.showtime_id = s.id) AS "minPrice"
+         CASE WHEN s.cancelled_at IS NOT NULL THEN 0
+              ELSE (SELECT count(*)::int FROM seats se
+                     WHERE se.showtime_id = s.id AND NOT ${seatTakenSql('se')}) END AS "availableSeats",
+         (SELECT min(se.face_value) FROM seats se WHERE se.showtime_id = s.id) AS "minPrice",
+         s.cancelled_at AS "cancelledAt", s.cancel_reason AS "cancelReason"
   FROM showtimes s`;
 
 const toResponse = (r: ShowtimeRow): ShowtimeResponse => ({
@@ -41,6 +45,8 @@ const toResponse = (r: ShowtimeRow): ShowtimeResponse => ({
   totalSeats: r.totalSeats,
   availableSeats: r.availableSeats,
   minPrice: r.minPrice === null ? null : Number(r.minPrice),
+  cancelledAt: r.cancelledAt,
+  cancelReason: r.cancelReason,
 });
 
 @Injectable()

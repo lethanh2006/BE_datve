@@ -36,6 +36,9 @@ export class BookingResponse {
   refundableUntil: Date | null;
   /** Thời điểm đã hoàn tiền, null nếu chưa hoàn */
   refundedAt: Date | null;
+  /** Suất diễn bị huỷ (kèm lý do) thì đơn được hoàn tiền tự động */
+  showtimeCancelledAt: Date | null;
+  showtimeCancelReason: string | null;
   /** Chỉ có trong API quản trị */
   customer?: CustomerResponse;
 }

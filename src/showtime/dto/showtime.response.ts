@@ -8,4 +8,7 @@ export class ShowtimeResponse {
   availableSeats: number;
   /** Giá vé thấp nhất (null nếu suất chưa có ghế) */
   minPrice: number | null;
+  /** Thời điểm suất diễn bị huỷ, null nếu vẫn diễn ra */
+  cancelledAt: Date | null;
+  cancelReason: string | null;
 }

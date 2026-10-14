@@ -51,6 +51,13 @@ export class BookingService {
 
     // 2. Suất diễn phải tồn tại và chưa bắt đầu
     const showtime = await this.showtimeService.findOne(showtimeId);
+    if (showtime.cancelledAt) {
+      throw new ApiException(
+        HttpStatus.CONFLICT,
+        'SHOWTIME_CANCELLED',
+        'Suất diễn đã bị huỷ, không thể đặt vé',
+      );
+    }
     if (showtime.startTime.getTime() <= Date.now()) {
       throw new ApiException(
         HttpStatus.CONFLICT,
@@ -82,6 +89,27 @@ export class BookingService {
     showtimeId: number,
     seatIds: number[],
   ): Promise<number> {
+    // Khoá chia sẻ dòng suất diễn trước mọi khoá khác: việc huỷ suất (UPDATE dòng này) phải chờ các đơn đang giữ ghế
+    // xong, nên đơn mới hoặc thấy suất đã huỷ, hoặc được quét huỷ ngay sau khi suất bị huỷ. Các đơn khác không chặn nhau.
+    const [showtime] = await em.query<{ cancelledAt: Date | null }[]>(
+      `SELECT cancelled_at AS "cancelledAt" FROM showtimes WHERE id = $1 FOR SHARE`,
+      [showtimeId],
+    );
+    if (!showtime) {
+      throw new ApiException(
+        HttpStatus.NOT_FOUND,
+        'SHOWTIME_NOT_FOUND',
+        `Không tìm thấy suất diễn có id ${showtimeId}`,
+      );
+    }
+    if (showtime.cancelledAt) {
+      throw new ApiException(
+        HttpStatus.CONFLICT,
+        'SHOWTIME_CANCELLED',
+        'Suất diễn đã bị huỷ, không thể đặt vé',
+      );
+    }
+
     // 3. Khoá dòng user để các lần đặt vé của cùng một người chạy tuần tự (kiểm tra giới hạn đơn đang giữ)
     const owners = await em.query<{ id: string }[]>(
       `SELECT id FROM users WHERE id = $1 FOR NO KEY UPDATE`,

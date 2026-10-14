@@ -6,6 +6,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { CancellationModule } from './cancellation/cancellation.module';
 import { PaymentModule } from './payment/payment.module';
 import { HealthController } from './health/health.controller';
 import { MailModule } from './mail/mail.module';
@@ -50,6 +51,7 @@ import { ShowtimeModule } from './showtime/showtime.module';
     PaymentModule,
     AdminModule,
     UserModule,
+    CancellationModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

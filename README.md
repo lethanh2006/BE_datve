@@ -88,6 +88,8 @@ Mọi route yêu cầu `Authorization: Bearer <token>` trừ các route đánh d
 | POST | `/api/admin/events/:eventId/showtimes` | ADMIN | Tạo suất diễn, có thể sinh ghế theo khu (`sections`) |
 | POST | `/api/admin/showtimes/:id/seats` | ADMIN | Thêm ghế cho suất diễn |
 | DELETE | `/api/admin/showtimes/:id` | ADMIN | Xoá suất diễn chưa có đơn |
+| POST | `/api/admin/showtimes/:id/cancel` | ADMIN | `{"reason":"..."}` Huỷ suất diễn (202): ngừng bán, nhả ghế đơn chưa thanh toán, tự hoàn tiền các đơn đã thanh toán ở nền và gửi email kèm lý do |
+| GET | `/api/admin/showtimes/:id/cancellation` | ADMIN | Tiến độ hoàn tiền: đơn còn chờ, đã hoàn, đã soát vé, đang thanh toán dở, danh sách đơn đang lỗi |
 | GET | `/api/admin/bookings?status=&q=` | ADMIN | Mọi đơn kèm thông tin khách |
 | POST | `/api/admin/bookings/check-in` | ADMIN | Soát vé: body `{"ticketCode":"..."}` (mã trong QR), quét lại trả `ALREADY_CHECKED_IN` |
 | GET | `/api/admin/users?q=&role=&status=` | ADMIN | Người dùng kèm số đơn đã xác nhận và tổng chi tiêu |
@@ -96,6 +98,15 @@ Mọi route yêu cầu `Authorization: Bearer <token>` trừ các route đánh d
 | GET | `/api/admin/emails?status=` | ADMIN | Hàng đợi email (không kèm nội dung): đã gửi, đang thử lại, thất bại |
 | POST | `/api/admin/emails/:id/retry` | ADMIN | Gửi lại thư đã thất bại hẳn |
 | GET | `/api/admin/stats` | ADMIN | Doanh thu, ghế đã bán, thống kê 14 ngày, top sự kiện |
+
+### Huỷ suất diễn
+
+`POST /api/admin/showtimes/:id/cancel` đánh dấu suất bị huỷ (`cancelled_at`, V9) và trả về ngay; việc hoàn tiền do một worker quét nền (10 giây/lần, và kích hoạt ngay khi huỷ) nên chịu được khởi động lại và chạy được trên nhiều instance:
+
+- Đặt vé và thanh toán suất đã huỷ bị từ chối `SHOWTIME_CANCELLED`; đặt vé khoá dòng suất ở chế độ chia sẻ nên không có đơn nào lọt qua sau thời điểm huỷ (đơn lọt lưới được quét đóng, ghế không bao giờ kẹt).
+- Đơn chưa thanh toán bị đóng và nhả ghế; đơn đã thanh toán được hoàn đầy đủ (bỏ qua thời hạn hoàn vé), khách nhận email kèm lý do.
+- Đơn hoàn lỗi được thử lại sau 1 phút, 5 phút, 15 phút rồi mỗi giờ; lỗi hiện trong API tiến độ. Đơn đang thanh toán dở lúc huỷ tự được hoàn khi thanh toán xong. Vé đã soát tại cửa không tự hoàn.
+- Gọi huỷ lại an toàn, dùng để kích hoạt lại việc hoàn tiền; suất đã kết thúc không huỷ được.
 
 ### Cập nhật ghế thời gian thực
 

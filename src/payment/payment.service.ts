@@ -227,10 +227,12 @@ export class PaymentService {
           status: BookingStatus;
           totalAmount: string;
           expired: boolean;
+          cancelled: boolean;
         }[] = await em.query(
-          `SELECT id, user_id AS "userId", status, total_amount AS "totalAmount",
-                  (expires_at <= now()) AS expired
-           FROM bookings WHERE id = $1 FOR UPDATE`,
+          `SELECT b.id, b.user_id AS "userId", b.status, b.total_amount AS "totalAmount",
+                  (b.expires_at <= now()) AS expired, (s.cancelled_at IS NOT NULL) AS cancelled
+           FROM bookings b JOIN showtimes s ON s.id = b.showtime_id
+           WHERE b.id = $1 FOR UPDATE OF b`,
           [bookingId],
         );
         // Chỉ chủ đơn được thanh toán; người khác nhận 404 để không lộ đơn tồn tại
@@ -266,6 +268,12 @@ export class PaymentService {
             throw this.conflict('BOOKING_CANCELLED', 'Đơn đã bị huỷ');
           case BookingStatus.EXPIRED:
             throw this.conflict('BOOKING_EXPIRED', 'Đơn đã hết hạn giữ ghế');
+        }
+        if (booking.cancelled) {
+          throw this.conflict(
+            'SHOWTIME_CANCELLED',
+            'Suất diễn đã bị huỷ, không thể thanh toán',
+          );
         }
         if (booking.expired)
           throw this.conflict('BOOKING_EXPIRED', 'Đơn đã hết hạn giữ ghế');
@@ -371,6 +379,19 @@ export class PaymentService {
     bookingId: number,
     dto: RefundBookingRequest,
   ): Promise<BookingResponse> {
+    return (await this.refundDetailed(user, bookingId, dto)).booking;
+  }
+
+  /**
+   * Như `refund` nhưng cho biết lần gọi này có thật sự hoàn tiền không (`refundedNow`, false nếu đơn đã được hoàn trước đó)
+   * để nơi gọi (ví dụ hoàn hàng loạt khi huỷ suất diễn) gửi thông báo đúng một lần; và cho phép tự gửi email riêng.
+   */
+  async refundDetailed(
+    user: AuthUser,
+    bookingId: number,
+    dto: RefundBookingRequest,
+    options: { notify?: boolean } = {},
+  ): Promise<{ booking: BookingResponse; refundedNow: boolean }> {
     const isAdmin = user.role === Role.ADMIN;
 
     const refundedNow = await this.dataSource.transaction(async (em) => {
@@ -473,12 +494,15 @@ export class PaymentService {
       return true;
     });
 
-    if (refundedNow) {
+    if (refundedNow && options.notify !== false) {
       this.notify(bookingId, (b) =>
         bookingRefundedEmail({ ...this.mailData(b), refund: b.totalAmount }),
       );
     }
-    return (await this.bookings.findDetail(bookingId, isAdmin))!;
+    return {
+      booking: (await this.bookings.findDetail(bookingId, isAdmin))!,
+      refundedNow,
+    };
   }
 
   private mailData(b: BookingResponse) {
