@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { PgError, pgErrorCode } from '../common/db/pg-error';
+import { containsPattern, matches } from '../common/db/search';
 import { ApiException } from '../common/exception/api.exception';
 import { PageResponse } from '../common/response/page-response';
 import { EventListQuery } from './dto/event-list.query';
@@ -40,8 +41,6 @@ const toResponse = (r: EventRow): EventResponse => ({
   minPrice: r.minPrice === null ? null : Number(r.minPrice),
 });
 
-const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
-
 @Injectable()
 export class EventService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -49,8 +48,8 @@ export class EventService {
   /** Sự kiện có suất diễn sắp tới gần nhất đứng trước, sự kiện chưa có suất xuống cuối. */
   async findAll(query: EventListQuery): Promise<PageResponse<EventResponse>> {
     const { page, size, q, category } = query;
-    const params = [q ? `%${escapeLike(q)}%` : null, category ?? null];
-    const where = `WHERE ($1::text IS NULL OR e.name ILIKE $1 OR e.venue ILIKE $1)
+    const params = [containsPattern(q), category ?? null];
+    const where = `WHERE ($1::text IS NULL OR ${matches('e.name', '$1')} OR ${matches('e.venue', '$1')})
                      AND ($2::text IS NULL OR e.category = $2)`;
 
     const [rows, counted] = await Promise.all([

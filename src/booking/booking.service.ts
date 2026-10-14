@@ -4,6 +4,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { AuthUser } from '../auth/auth-user';
 import { Role } from '../auth/role.enum';
 import { PgError, pgConstraint, pgErrorCode } from '../common/db/pg-error';
+import { containsPattern, matches } from '../common/db/search';
 import { ApiException } from '../common/exception/api.exception';
 import { PageResponse } from '../common/response/page-response';
 import { ShowtimeService } from '../showtime/showtime.service';
@@ -23,8 +24,6 @@ export const MAX_ACTIVE_HOLDS_PER_USER = 5;
 
 const ACTIVE_RESERVATION_INDEX =
   'booking_seats_one_active_reservation_per_seat';
-
-const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 @Injectable()
 export class BookingService {
@@ -205,10 +204,10 @@ export class BookingService {
   async listAll(
     query: AdminBookingListQuery,
   ): Promise<PageResponse<BookingResponse>> {
-    const pattern = query.q ? `%${escapeLike(query.q)}%` : null;
+    const pattern = containsPattern(query.q);
     const where = `JOIN users u ON u.id = b.user_id
       WHERE ($1::text IS NULL OR ${effectiveStatusSql('b')} = $1)
-        AND ($2::text IS NULL OR u.email ILIKE $2 OR u.full_name ILIKE $2)`;
+        AND ($2::text IS NULL OR ${matches('u.email', '$2')} OR ${matches('u.full_name', '$2')})`;
     const params = [query.status ?? null, pattern];
     const [idRows, counted] = await Promise.all([
       this.dataSource.query<{ id: string }[]>(

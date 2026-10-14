@@ -98,6 +98,29 @@ describe('Danh mục sự kiện (e2e)', () => {
       expect(underscore.body.totalElements).toBe(0);
     });
 
+    it('tìm kiếm không phân biệt dấu và hoa thường (kể cả chữ đ và dấu ở dạng tổ hợp)', async () => {
+      await ds.query(`INSERT INTO events (name, venue, category) VALUES
+        ('Đêm nhạc Trịnh Công Sơn', 'Nhà hát Hòa Bình', 'Âm nhạc'),
+        ('Lễ hội ẩm thực đường phố', 'Công viên Tao Đàn', 'Lễ hội')`);
+      const names = async (q: string) =>
+        (
+          await http().get('/api/events').query({ q }).expect(200)
+        ).body.content.map((e: { name: string }) => e.name);
+
+      expect(await names('dem nhac')).toEqual(['Đêm nhạc Trịnh Công Sơn']);
+      expect(await names('TRINH CONG SON')).toEqual([
+        'Đêm nhạc Trịnh Công Sơn',
+      ]);
+      expect(await names('duong pho')).toEqual(['Lễ hội ẩm thực đường phố']);
+      expect(await names('hoa binh')).toEqual(['Đêm nhạc Trịnh Công Sơn']); // theo địa điểm
+      expect(await names('đêm')).toEqual(['Đêm nhạc Trịnh Công Sơn']); // gõ có dấu vẫn khớp
+      // dấu viết ở dạng tổ hợp (NFD), thường gặp khi dán từ một số bộ gõ/macOS
+      expect(await names('Đêm nhạc'.normalize('NFD'))).toEqual([
+        'Đêm nhạc Trịnh Công Sơn',
+      ]);
+      expect(await names('khong co')).toEqual([]);
+    });
+
     it('phân trang và kiểm tra tham số', async () => {
       await ds.query(
         `INSERT INTO events (name, venue) SELECT 'Sự kiện ' || n, 'V' FROM generate_series(1, 25) n`,

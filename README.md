@@ -13,7 +13,7 @@ Backend đặt vé sự kiện, chuyển đổi từ bản Spring Boot (`BE_Java
 
 ## Chạy dự án
 
-Yêu cầu: Node.js 22+, Docker (cho PostgreSQL).
+Yêu cầu: Node.js 22+, Docker (cho PostgreSQL). Migration V8 bật extension `unaccent` (có sẵn trong image `postgres` chính thức; trên DB do dịch vụ quản lý cần cho phép `CREATE EXTENSION unaccent`).
 
 ```bash
 cp .env.example .env        # sửa DB_PASSWORD, JWT_SECRET (openssl rand -hex 32)
@@ -69,7 +69,7 @@ Mọi route yêu cầu `Authorization: Bearer <token>` trừ các route đánh d
 | PUT | `/api/auth/password` | đăng nhập | `{"currentPassword":"...","newPassword":"..."}`, trả JWT mới, thu hồi phiên và mã khôi phục cũ |
 | POST | `/api/auth/forgot-password` | công khai | `{"email":"..."}`, luôn trả 202 với thông báo chung |
 | POST | `/api/auth/reset-password` | công khai | `{"token":"...","password":"..."}`, thành công trả 204 |
-| GET | `/api/events?q=&category=&page=0&size=20` | công khai | Danh sách sự kiện (kèm suất sắp tới và giá thấp nhất) |
+| GET | `/api/events?q=&category=&page=0&size=20` | công khai | Danh sách sự kiện (kèm suất sắp tới và giá thấp nhất); `q` không phân biệt hoa thường và dấu tiếng Việt |
 | GET | `/api/events/categories` | công khai | Các thể loại đang có |
 | GET | `/api/events/:id` | công khai | Chi tiết sự kiện |
 | GET | `/api/events/:eventId/showtimes` | công khai | Suất diễn + số ghế còn lại |

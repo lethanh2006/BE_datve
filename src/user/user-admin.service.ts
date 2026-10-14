@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
 import { AuthUser } from '../auth/auth-user';
 import { Role } from '../auth/role.enum';
+import { containsPattern, matches } from '../common/db/search';
 import { ApiException } from '../common/exception/api.exception';
 import { PageResponse } from '../common/response/page-response';
 import { AdminUserListQuery, AdminUserResponse } from './dto/admin-user.dto';
@@ -40,8 +41,6 @@ const toResponse = (r: UserRow): AdminUserResponse => ({
   totalSpent: Number(r.totalSpent),
 });
 
-const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
-
 @Injectable()
 export class UserAdminService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -49,13 +48,13 @@ export class UserAdminService {
   async list(
     query: AdminUserListQuery,
   ): Promise<PageResponse<AdminUserResponse>> {
-    const where = `WHERE ($1::text IS NULL OR u.email ILIKE $1 OR u.full_name ILIKE $1)
+    const where = `WHERE ($1::text IS NULL OR ${matches('u.email', '$1')} OR ${matches('u.full_name', '$1')})
         AND ($2::text IS NULL OR u.role = $2)
         AND ($3::text IS NULL
              OR ($3 = 'DISABLED' AND u.disabled_at IS NOT NULL)
              OR ($3 = 'ACTIVE' AND u.disabled_at IS NULL))`;
     const params = [
-      query.q ? `%${escapeLike(query.q)}%` : null,
+      containsPattern(query.q),
       query.role ?? null,
       query.status ?? null,
     ];

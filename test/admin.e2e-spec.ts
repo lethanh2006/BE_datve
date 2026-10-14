@@ -370,6 +370,13 @@ describe('Quản trị (e2e)', () => {
       expect(byName.body.content.map((x: { id: number }) => x.id)).toEqual([
         first.id,
       ]);
+      // gõ không dấu vẫn tìm ra "Nguyễn An"
+      const noAccent = await asAdmin
+        .get('/api/admin/bookings?q=nguyen')
+        .expect(200);
+      expect(noAccent.body.content.map((x: { id: number }) => x.id)).toEqual([
+        first.id,
+      ]);
       const byEmail = await asAdmin
         .get('/api/admin/bookings?q=binh@')
         .expect(200);

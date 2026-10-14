@@ -82,6 +82,14 @@ describe('Quản lý người dùng (e2e)', () => {
     expect(byName.body.content.map((u: { email: string }) => u.email)).toEqual([
       'an@test.com',
     ]);
+    const noAccent = await http()
+      .get('/api/admin/users')
+      .query({ q: 'nguyen an' })
+      .set(bearer(admin))
+      .expect(200);
+    expect(
+      noAccent.body.content.map((u: { email: string }) => u.email),
+    ).toEqual(['an@test.com']);
     const admins = await http()
       .get('/api/admin/users')
       .query({ role: 'ADMIN' })
