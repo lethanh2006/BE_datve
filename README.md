@@ -53,6 +53,7 @@ npm run start:dev           # http://localhost:8080
 | `SMTP_URL` | trống | Kết nối SMTP, ví dụ `smtps://user:pass@smtp.example.com:465` |
 | `MAIL_FROM` | `ĐặtVé <no-reply@datve.local>` | Địa chỉ gửi thư; dùng địa chỉ đã xác minh khi gửi thật |
 | `REFUND_WINDOW_HOURS` | `24` | Hạn hoàn vé tính lùi từ giờ diễn; số từ 0 đến 87600 |
+| `SEAT_STREAM_MAX_CLIENTS` | `5000` | Số kết nối SSE theo dõi ghế tối đa mỗi instance, vượt thì trả 503 |
 
 ## API
 
@@ -73,6 +74,7 @@ Mọi route yêu cầu `Authorization: Bearer <token>` trừ các route đánh d
 | GET | `/api/events/:eventId/showtimes` | công khai | Suất diễn + số ghế còn lại |
 | GET | `/api/showtimes/:id` | công khai | Chi tiết suất diễn |
 | GET | `/api/showtimes/:showtimeId/seats` | công khai | Ghế + trạng thái `AVAILABLE/HELD/BOOKED` |
+| GET | `/api/showtimes/:showtimeId/seats/events` | công khai | **SSE**: sự kiện `ready` khi nối, `seats` mỗi khi ghế của suất đổi, `ping` mỗi 25 giây. Client nhận `seats` thì gọi lại API danh sách ghế |
 | POST | `/api/showtimes/:showtimeId/bookings` | đăng nhập | Giữ ghế 5 phút, body `{"seatIds":[1,2]}` |
 | GET | `/api/bookings?status=&page=&size=` | đăng nhập | Đơn của tôi, mới nhất trước |
 | GET | `/api/bookings/:id` | chủ đơn / admin | Chi tiết đơn |
@@ -87,7 +89,14 @@ Mọi route yêu cầu `Authorization: Bearer <token>` trừ các route đánh d
 | DELETE | `/api/admin/showtimes/:id` | ADMIN | Xoá suất diễn chưa có đơn |
 | GET | `/api/admin/bookings?status=&q=` | ADMIN | Mọi đơn kèm thông tin khách |
 | POST | `/api/admin/bookings/check-in` | ADMIN | Soát vé: body `{"ticketCode":"..."}` (mã trong QR), quét lại trả `ALREADY_CHECKED_IN` |
+| GET | `/api/admin/users?q=&role=&status=` | ADMIN | Người dùng kèm số đơn đã xác nhận và tổng chi tiêu |
+| PUT | `/api/admin/users/:id/role` | ADMIN | `{"role":"USER"\|"ADMIN"}`, có hiệu lực ngay với token đang dùng |
+| PUT | `/api/admin/users/:id/status` | ADMIN | `{"disabled":true}` khoá tài khoản và thu hồi phiên; không tự khoá/đổi quyền chính mình, luôn còn ít nhất một admin |
 | GET | `/api/admin/stats` | ADMIN | Doanh thu, ghế đã bán, thống kê 14 ngày, top sự kiện |
+
+### Cập nhật ghế thời gian thực
+
+V6 đặt trigger trên `booking_seats` và `seats` gọi `pg_notify('seat_changes', <showtime_id>)`. Mỗi tiến trình API giữ một kết nối `LISTEN` và đẩy sự kiện tới các client SSE của đúng suất diễn (gộp các thay đổi dồn dập trong 150 ms). Vì nguồn là DB nên mọi thay đổi đều được báo: request của người dùng, job dọn hết hạn, hay một instance API khác. Mất kết nối DB thì tự nối lại và báo client tải lại. Reverse proxy phải tắt buffering cho đường dẫn này (xem nginx của frontend).
 
 ### Vòng đời đơn đặt vé
 
