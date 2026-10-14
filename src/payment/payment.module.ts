@@ -1,0 +1,16 @@
+import { Module } from '@nestjs/common';
+import { MockPaymentGateway } from './gateway/mock-payment.gateway';
+import { PAYMENT_GATEWAY } from './gateway/payment-gateway';
+import { PaymentRecoveryService } from './payment-recovery.service';
+import { PaymentController } from './payment.controller';
+import { PaymentService } from './payment.service';
+
+@Module({
+  controllers: [PaymentController],
+  providers: [
+    PaymentService,
+    PaymentRecoveryService,
+    { provide: PAYMENT_GATEWAY, useClass: MockPaymentGateway },
+  ],
+})
+export class PaymentModule {}

@@ -4,7 +4,9 @@ import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { PaymentModule } from './payment/payment.module';
 import { HealthController } from './health/health.controller';
 import { BookingModule } from './booking/booking.module';
 import { EventModule } from './event/event.module';
@@ -42,6 +44,8 @@ import { ShowtimeModule } from './showtime/showtime.module';
     ShowtimeModule,
     SeatModule,
     BookingModule,
+    PaymentModule,
+    AdminModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
