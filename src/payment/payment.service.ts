@@ -4,14 +4,26 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
 import { AuthUser } from '../auth/auth-user';
 import { Role } from '../auth/role.enum';
+import { bookingCode } from '../booking/booking-code';
 import { effectiveStatusSql } from '../booking/booking-queries';
 import { BookingStatus } from '../booking/booking-status.enum';
+import { BookingService } from '../booking/booking.service';
+import { BookingResponse } from '../booking/dto/booking.response';
+import { RefundPolicy } from '../booking/refund-policy';
 import { PgError, pgConstraint, pgErrorCode } from '../common/db/pg-error';
 import { ApiException } from '../common/exception/api.exception';
+import { MailService } from '../mail/mail.service';
+import { bookingConfirmedEmail, bookingRefundedEmail } from '../mail/templates';
+import { MailMessage } from '../mail/mail.types';
 import { PayRequest } from './dto/pay.request';
+import { RefundBookingRequest } from './dto/refund.request';
 import { PaymentResponse } from './dto/payment.response';
 import { PAYMENT_GATEWAY } from './gateway/payment-gateway';
-import type { ChargeResult, PaymentGateway } from './gateway/payment-gateway';
+import type {
+  ChargeResult,
+  PaymentGateway,
+  RefundResult,
+} from './gateway/payment-gateway';
 import { PaymentStatus } from './payment-status.enum';
 
 /** Payment ở PROCESSING quá lâu (tiến trình chết giữa chừng) sẽ bị job phục hồi coi là thất bại. */
@@ -60,7 +72,25 @@ export class PaymentService {
     @InjectDataSource() private readonly dataSource: DataSource,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
     private readonly config: ConfigService,
-  ) {}
+    private readonly bookings: BookingService,
+    private readonly mail: MailService,
+    private readonly policy: RefundPolicy,
+  ) {
+    this.appUrl = config
+      .get<string>('APP_URL', 'http://localhost:5173')
+      .replace(/\/$/, '');
+  }
+
+  private readonly appUrl: string;
+
+  /** Cho phép client ép kết quả của cổng thanh toán giả (chỉ khi dev/demo). */
+  private simulation(
+    requested: 'SUCCESS' | 'FAILED' | undefined,
+  ): 'SUCCESS' | 'FAILED' | undefined {
+    return this.config.get('PAYMENT_ALLOW_SIMULATION') === 'true'
+      ? requested
+      : undefined;
+  }
 
   /**
    * Thanh toán 1 đơn. Gồm 2 giao dịch DB tách nhau để không giữ khoá trong lúc gọi cổng thanh toán:
@@ -92,17 +122,21 @@ export class PaymentService {
 
     const started = await this.begin(user, bookingId, idempotencyKey);
     if (started.fresh) {
-      const simulate =
-        this.config.get('PAYMENT_ALLOW_SIMULATION') === 'true'
-          ? dto.simulate
-          : undefined;
-      await this.settle(
+      const confirmed = await this.settle(
         started.paymentId,
         bookingId,
         started.amount,
         idempotencyKey,
-        simulate,
+        this.simulation(dto.simulate),
       );
+      if (confirmed) {
+        this.notify(bookingId, (b) =>
+          bookingConfirmedEmail({
+            ...this.mailData(b),
+            ticketCode: b.ticketCode ?? '',
+          }),
+        );
+      }
     }
     return {
       payment: await this.getById(started.paymentId),
@@ -271,7 +305,7 @@ export class PaymentService {
     amount: string,
     key: string,
     simulate?: 'SUCCESS' | 'FAILED',
-  ) {
+  ): Promise<boolean> {
     let result: ChargeResult;
     try {
       result = await this.gateway.charge({
@@ -288,7 +322,7 @@ export class PaymentService {
       result = { status: 'FAILED', providerReference: null };
     }
 
-    await this.dataSource.transaction(async (em) => {
+    return this.dataSource.transaction(async (em) => {
       await em.query(`SELECT id FROM bookings WHERE id = $1 FOR UPDATE`, [
         bookingId,
       ]);
@@ -297,7 +331,7 @@ export class PaymentService {
         [paymentId],
       );
       // Job phục hồi đã xử lý payment này rồi thì giữ nguyên kết quả đó
-      if (payment?.status !== PaymentStatus.PROCESSING) return;
+      if (payment?.status !== PaymentStatus.PROCESSING) return false;
 
       if (result.status === 'SUCCESS') {
         await em.query(
@@ -317,10 +351,171 @@ export class PaymentService {
            WHERE booking_id = $1 AND reservation_status = 'HELD'`,
           [bookingId],
         );
-      } else {
-        await this.markFailed(em, paymentId, bookingId);
+        return true;
       }
+      await this.markFailed(em, paymentId, bookingId);
+      return false;
     });
+  }
+
+  /**
+   * Huỷ vé đã thanh toán và hoàn tiền. Chủ đơn chỉ hoàn được trước giờ diễn tối thiểu REFUND_WINDOW_HOURS giờ
+   * và khi vé chưa được soát; admin không bị giới hạn thời hạn. Gọi lại khi đã hoàn thì trả kết quả hiện tại.
+   *
+   * Gọi cổng thanh toán ngay trong giao dịch DB đang khoá dòng đơn: chỉ chặn đúng đơn này (chính là điều cần),
+   * và nếu cổng lỗi thì không có gì thay đổi. Khoá hoàn tiền cố định theo giao dịch nên nếu commit thất bại
+   * rồi người dùng thử lại, cổng sẽ không hoàn tiền hai lần.
+   */
+  async refund(
+    user: AuthUser,
+    bookingId: number,
+    dto: RefundBookingRequest,
+  ): Promise<BookingResponse> {
+    const isAdmin = user.role === Role.ADMIN;
+
+    const refundedNow = await this.dataSource.transaction(async (em) => {
+      const [booking] = await em.query<
+        {
+          userId: string;
+          status: BookingStatus;
+          checkedInAt: Date | null;
+          pastDeadline: boolean;
+        }[]
+      >(
+        `SELECT b.user_id AS "userId", b.status, b.checked_in_at AS "checkedInAt",
+                (s.start_time - make_interval(secs => $2) <= now()) AS "pastDeadline"
+         FROM bookings b
+         JOIN showtimes s ON s.id = b.showtime_id
+         WHERE b.id = $1
+         FOR UPDATE OF b`,
+        [bookingId, this.policy.windowSeconds],
+      );
+      if (!booking || (!isAdmin && booking.userId !== String(user.id))) {
+        throw this.bookingNotFound(bookingId);
+      }
+
+      if (booking.status === BookingStatus.CANCELLED) {
+        const [done] = await em.query<unknown[]>(
+          `SELECT 1 FROM payments WHERE booking_id = $1 AND status = 'REFUNDED' LIMIT 1`,
+          [bookingId],
+        );
+        if (done) return false; // đã hoàn trước đó
+      }
+      if (booking.status !== BookingStatus.CONFIRMED) {
+        throw this.conflict(
+          'INVALID_BOOKING_STATE',
+          'Chỉ đơn đã thanh toán mới có thể hoàn tiền',
+        );
+      }
+      if (booking.checkedInAt) {
+        throw this.conflict(
+          'TICKET_USED',
+          'Vé đã được sử dụng nên không thể hoàn tiền',
+        );
+      }
+      if (!isAdmin && booking.pastDeadline) {
+        throw this.conflict(
+          'REFUND_WINDOW_PASSED',
+          `Đã quá thời hạn hoàn vé (cần huỷ trước giờ diễn ít nhất ${this.policy.windowHours} giờ)`,
+        );
+      }
+
+      const [payment] = await em.query<
+        { id: string; amount: string; providerReference: string | null }[]
+      >(
+        `SELECT id, amount, provider_reference AS "providerReference"
+         FROM payments WHERE booking_id = $1 AND status = 'SUCCESS'
+         ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+        [bookingId],
+      );
+      if (!payment) {
+        throw this.conflict(
+          'PAYMENT_NOT_FOUND',
+          'Không tìm thấy giao dịch thanh toán của đơn này',
+        );
+      }
+
+      let result: RefundResult;
+      try {
+        result = await this.gateway.refund({
+          amount: payment.amount,
+          providerReference: payment.providerReference,
+          idempotencyKey: `refund-${payment.id}`,
+          simulate: this.simulation(dto.simulate),
+        });
+      } catch (e) {
+        this.logger.error(
+          `Cổng thanh toán lỗi khi hoàn tiền (payment ${payment.id})`,
+          e instanceof Error ? e.stack : String(e),
+        );
+        result = { status: 'FAILED', providerReference: null };
+      }
+      if (result.status !== 'SUCCESS') {
+        throw this.conflict(
+          'REFUND_FAILED',
+          'Cổng thanh toán chưa hoàn tiền được, vui lòng thử lại sau',
+        );
+      }
+
+      await em.query(
+        `UPDATE payments SET status = 'REFUNDED', refunded_at = now(), updated_at = now() WHERE id = $1`,
+        [payment.id],
+      );
+      await em.query(
+        `UPDATE bookings SET status = 'CANCELLED', updated_at = now() WHERE id = $1`,
+        [bookingId],
+      );
+      await em.query(
+        `UPDATE booking_seats SET reservation_status = 'RELEASED'
+         WHERE booking_id = $1 AND reservation_status = 'BOOKED'`,
+        [bookingId],
+      );
+      return true;
+    });
+
+    if (refundedNow) {
+      this.notify(bookingId, (b) =>
+        bookingRefundedEmail({ ...this.mailData(b), refund: b.totalAmount }),
+      );
+    }
+    return (await this.bookings.findDetail(bookingId, isAdmin))!;
+  }
+
+  private mailData(b: BookingResponse) {
+    return {
+      name: b.customer?.fullName ?? '',
+      bookingCode: bookingCode(b.id),
+      eventName: b.eventName,
+      venue: b.venue,
+      startTime: b.startTime,
+      seats: b.seats.map((s) => s.seatCode),
+      total: b.totalAmount,
+      link: `${this.appUrl}/bookings/${b.id}`,
+    };
+  }
+
+  /** Gửi email về đơn, không chờ kết quả và không bao giờ làm hỏng luồng gọi nó. */
+  private notify(
+    bookingId: number,
+    build: (
+      booking: BookingResponse,
+    ) => Pick<MailMessage, 'subject' | 'text' | 'html'>,
+  ) {
+    void this.bookings
+      .findDetail(bookingId, true)
+      .then((booking) => {
+        if (!booking?.customer) return;
+        return this.mail.send({
+          to: booking.customer.email,
+          ...build(booking),
+        });
+      })
+      .catch((e: unknown) =>
+        this.logger.error(
+          `Không gửi được email cho đơn ${bookingId}`,
+          e instanceof Error ? e.stack : String(e),
+        ),
+      );
   }
 
   /** Payment thất bại: đơn quay lại PENDING nếu còn hạn, ngược lại hết hạn và nhả ghế. Gọi khi đã khoá đơn. */

@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Res,
@@ -13,6 +15,7 @@ import { AuthUser } from '../auth/auth-user';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { PayRequest } from './dto/pay.request';
+import { RefundBookingRequest } from './dto/refund.request';
 import { PaymentService } from './payment.service';
 
 @ApiTags('Thanh toán')
@@ -43,6 +46,17 @@ export class PaymentController {
     );
     res.status(replayed ? 200 : 201);
     return payment;
+  }
+
+  /** Huỷ vé đã thanh toán và hoàn tiền (trong thời hạn cho phép). */
+  @Post('bookings/:bookingId/refund')
+  @HttpCode(HttpStatus.OK)
+  refund(
+    @CurrentUser() user: AuthUser,
+    @Param('bookingId', ParseIdPipe) bookingId: number,
+    @Body() dto: RefundBookingRequest,
+  ) {
+    return this.paymentService.refund(user, bookingId, dto);
   }
 
   @Get('bookings/:bookingId/payments')

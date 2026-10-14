@@ -16,6 +16,7 @@ import {
 import { BookingResponse } from './dto/booking.response';
 import { CheckInResponse, CheckInResult } from './dto/check-in.dto';
 import { CreateBookingRequest } from './dto/create-booking.request';
+import { RefundPolicy } from './refund-policy';
 
 /** Số đơn chưa thanh toán (còn hạn) tối đa của mỗi người, chống giữ ghế hàng loạt. */
 export const MAX_ACTIVE_HOLDS_PER_USER = 5;
@@ -30,6 +31,7 @@ export class BookingService {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly showtimeService: ShowtimeService,
+    private readonly policy: RefundPolicy,
   ) {}
 
   async createBooking(
@@ -62,7 +64,7 @@ export class BookingService {
       const bookingId = await this.dataSource.transaction((em) =>
         this.holdSeats(em, user.id, showtimeId, seatIds),
       );
-      return (await this.getOne(bookingId))!;
+      return (await this.findDetail(bookingId))!;
     } catch (e) {
       // Chốt chặn cuối cùng của DB: mỗi ghế chỉ có 1 reservation đang hoạt động
       if (
@@ -194,6 +196,7 @@ export class BookingService {
     const content = await fetchBookings(
       this.dataSource.manager,
       idRows.map((r) => Number(r.id)),
+      { policy: this.policy },
     );
     return PageResponse.of(content, query.page, query.size, counted[0].count);
   }
@@ -221,7 +224,7 @@ export class BookingService {
     const content = await fetchBookings(
       this.dataSource.manager,
       idRows.map((r) => Number(r.id)),
-      true,
+      { includeCustomer: true, policy: this.policy },
     );
     return PageResponse.of(content, query.page, query.size, counted[0].count);
   }
@@ -235,7 +238,7 @@ export class BookingService {
     const isAdmin = user.role === Role.ADMIN;
     if (!owner || (!isAdmin && owner.userId !== String(user.id)))
       throw this.notFound(id);
-    return (await this.getOne(id, isAdmin))!;
+    return (await this.findDetail(id, isAdmin))!;
   }
 
   async cancel(user: AuthUser, id: number): Promise<BookingResponse> {
@@ -280,7 +283,7 @@ export class BookingService {
           );
       }
     });
-    return (await this.getOne(id, user.role === Role.ADMIN))!;
+    return (await this.findDetail(id, user.role === Role.ADMIN))!;
   }
 
   /**
@@ -321,7 +324,7 @@ export class BookingService {
         return { id: row.id, result: 'CHECKED_IN' };
       },
     );
-    return { result, booking: (await this.getOne(Number(id), true))! };
+    return { result, booking: (await this.findDetail(Number(id), true))! };
   }
 
   /** Job nền: chuyển các đơn PENDING quá hạn sang EXPIRED và nhả ghế. Trả về số đơn đã xử lý. */
@@ -338,12 +341,15 @@ export class BookingService {
     );
   }
 
-  private async getOne(
+  async findDetail(
     id: number,
     includeCustomer = false,
   ): Promise<BookingResponse | undefined> {
     return (
-      await fetchBookings(this.dataSource.manager, [id], includeCustomer)
+      await fetchBookings(this.dataSource.manager, [id], {
+        includeCustomer,
+        policy: this.policy,
+      })
     )[0];
   }
 

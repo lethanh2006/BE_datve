@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthController } from './auth.controller';
+import { AuthMaintenanceService } from './maintenance.service';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -31,6 +32,7 @@ import { User } from './user.entity';
   controllers: [AuthController],
   providers: [
     AuthService,
+    AuthMaintenanceService,
     // Mặc định mọi route cần JWT; route công khai đánh dấu @Public()
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

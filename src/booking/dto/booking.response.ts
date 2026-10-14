@@ -32,6 +32,10 @@ export class BookingResponse {
   ticketCode: string | null;
   /** Thời điểm soát vé tại cửa, null nếu chưa vào */
   checkedInAt: Date | null;
+  /** Hạn chót để huỷ vé và hoàn tiền; null nếu đơn không thể hoàn (chưa thanh toán, đã soát vé, đã huỷ...) */
+  refundableUntil: Date | null;
+  /** Thời điểm đã hoàn tiền, null nếu chưa hoàn */
+  refundedAt: Date | null;
   /** Chỉ có trong API quản trị */
   customer?: CustomerResponse;
 }

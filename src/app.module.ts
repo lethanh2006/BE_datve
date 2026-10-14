@@ -8,6 +8,7 @@ import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { PaymentModule } from './payment/payment.module';
 import { HealthController } from './health/health.controller';
+import { MailModule } from './mail/mail.module';
 import { BookingModule } from './booking/booking.module';
 import { EventModule } from './event/event.module';
 import { SeatModule } from './seat/seat.module';
@@ -39,6 +40,7 @@ import { ShowtimeModule } from './showtime/showtime.module';
       }),
     }),
     ScheduleModule.forRoot(),
+    MailModule,
     AuthModule,
     EventModule,
     ShowtimeModule,

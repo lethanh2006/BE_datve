@@ -37,6 +37,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Cần đặt JWT_SECRET (openssl rand -hex 32)}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       TRUST_PROXY: ${TRUST_PROXY:-false}
+      APP_URL: ${APP_URL:-http://localhost:5173}
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-Asia/Ho_Chi_Minh}
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM:-ĐặtVé <no-reply@datve.local>}
+      REFUND_WINDOW_HOURS: ${REFUND_WINDOW_HOURS:-24}
     # Áp dụng migration rồi mới nhận request
     command: ["sh", "-c", "node scripts/migrate.js && node dist/main"]
     ports:

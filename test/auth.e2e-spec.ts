@@ -29,6 +29,7 @@ describe('Auth (e2e)', () => {
       email: 'nguoi.dung@test.com',
       fullName: 'Nguyễn Văn A',
       role: 'USER',
+      createdAt: expect.any(String),
     });
     expect(JSON.stringify(res.body)).not.toMatch(/password/i);
   });

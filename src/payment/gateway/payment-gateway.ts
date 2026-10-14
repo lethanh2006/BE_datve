@@ -15,8 +15,25 @@ export interface ChargeResult {
   providerReference: string | null;
 }
 
+export interface RefundRequest {
+  /** Số tiền hoàn, dạng chuỗi thập phân */
+  amount: string;
+  /** Mã giao dịch gốc do cổng thanh toán trả về lúc thu tiền */
+  providerReference: string | null;
+  /** Khoá cố định cho mỗi giao dịch: gọi lại không hoàn tiền hai lần */
+  idempotencyKey: string;
+  /** Chỉ mock gateway mới đọc: ép kết quả để demo/test */
+  simulate?: 'SUCCESS' | 'FAILED';
+}
+
+export interface RefundResult {
+  status: 'SUCCESS' | 'FAILED';
+  providerReference: string | null;
+}
+
 /** Cổng thanh toán. Thay MockPaymentGateway bằng bản gọi VNPay/MoMo/Stripe... khi triển khai thật. */
 export interface PaymentGateway {
   readonly name: string;
   charge(request: ChargeRequest): Promise<ChargeResult>;
+  refund(request: RefundRequest): Promise<RefundResult>;
 }

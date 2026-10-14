@@ -1,4 +1,5 @@
 import { EntityManager } from 'typeorm';
+import { RefundPolicy } from './refund-policy';
 import { BookingSeatStatus, BookingStatus } from './booking-status.enum';
 import { BookingResponse } from './dto/booking.response';
 
@@ -21,6 +22,7 @@ interface BookingRow {
   createdAt: Date;
   ticketCode: string | null;
   checkedInAt: Date | null;
+  refundedAt: Date | null;
   userId: string;
   userEmail: string;
   userFullName: string;
@@ -36,10 +38,16 @@ interface BookingSeatRow {
 }
 
 /** Nạp đầy đủ thông tin các đơn theo đúng thứ tự `ids` (đơn không tồn tại sẽ bị bỏ qua). */
+export interface FetchBookingsOptions {
+  /** Kèm thông tin khách hàng (chỉ dùng cho API quản trị) */
+  includeCustomer?: boolean;
+  policy: RefundPolicy;
+}
+
 export async function fetchBookings(
   em: EntityManager,
   ids: number[],
-  includeCustomer = false,
+  { includeCustomer = false, policy }: FetchBookingsOptions,
 ): Promise<BookingResponse[]> {
   if (!ids.length) return [];
 
@@ -50,6 +58,9 @@ export async function fetchBookings(
               ${effectiveStatusSql('b')} AS status,
               b.total_amount AS "totalAmount", b.expires_at AS "expiresAt", b.created_at AS "createdAt",
               b.ticket_code AS "ticketCode", b.checked_in_at AS "checkedInAt",
+              (SELECT p.refunded_at FROM payments p
+                WHERE p.booking_id = b.id AND p.status = 'REFUNDED'
+                ORDER BY p.id DESC LIMIT 1) AS "refundedAt",
               u.id AS "userId", u.email AS "userEmail", u.full_name AS "userFullName"
        FROM bookings b
        JOIN showtimes s ON s.id = b.showtime_id
@@ -102,6 +113,12 @@ export async function fetchBookings(
       createdAt: r.createdAt,
       ticketCode: r.ticketCode,
       checkedInAt: r.checkedInAt,
+      // Chỉ đơn đã thanh toán và chưa dùng vé mới có thể hoàn
+      refundableUntil:
+        r.status === BookingStatus.CONFIRMED && !r.checkedInAt
+          ? policy.deadline(r.startTime)
+          : null,
+      refundedAt: r.refundedAt,
     };
     if (includeCustomer) {
       booking.customer = {

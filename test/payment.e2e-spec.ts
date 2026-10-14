@@ -6,6 +6,7 @@ import {
   ChargeResult,
   PAYMENT_GATEWAY,
   PaymentGateway,
+  RefundResult,
 } from '../src/payment/gateway/payment-gateway';
 import { PaymentService } from '../src/payment/payment.service';
 import {
@@ -31,6 +32,13 @@ class FakeGateway implements PaymentGateway {
   charge(req: ChargeRequest) {
     this.calls.push(req);
     return this.behaviour(req);
+  }
+
+  refund(): Promise<RefundResult> {
+    return Promise.resolve({
+      status: 'SUCCESS',
+      providerReference: 'FAKE-REFUND',
+    });
   }
 }
 

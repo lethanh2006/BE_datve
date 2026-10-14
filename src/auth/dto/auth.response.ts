@@ -6,6 +6,7 @@ export class UserResponse {
   email: string;
   fullName: string;
   role: Role;
+  createdAt: Date;
 
   static from(u: User): UserResponse {
     return {
@@ -13,6 +14,7 @@ export class UserResponse {
       email: u.email,
       fullName: u.fullName,
       role: u.role,
+      createdAt: u.createdAt,
     };
   }
 }

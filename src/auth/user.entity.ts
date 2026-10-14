@@ -18,6 +18,13 @@ export class User {
   @Column({ type: 'varchar', length: 20, default: Role.USER })
   role: Role;
 
+  /** Tăng lên khi đổi/đặt lại mật khẩu để thu hồi các token cũ */
+  @Column({ name: 'token_version', type: 'int', default: 0 })
+  tokenVersion: number;
+
+  @Column({ name: 'disabled_at', type: 'timestamptz', nullable: true })
+  disabledAt: Date | null;
+
   @Column({
     name: 'created_at',
     type: 'timestamptz',
