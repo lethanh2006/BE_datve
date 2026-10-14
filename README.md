@@ -97,12 +97,21 @@ PENDING ──thanh toán──▶ PAYMENT_PROCESSING ──thành công──�
 2. Kiểm tra ghế còn trống rồi mới tạo đơn, tất cả trong một transaction.
 3. Chốt chặn cuối cùng ở DB: unique index `booking_seats_one_active_reservation_per_seat`.
 
+## Docker
+
+```bash
+docker compose up -d                       # chỉ PostgreSQL (dev)
+JWT_SECRET=$(openssl rand -hex 32) docker compose --profile app up -d --build   # PostgreSQL + API (tự migrate)
+```
+
+Image dùng multi-stage, chạy bằng user `node` không phải root, có `HEALTHCHECK` gọi `/actuator/health`. Trong production Swagger mặc định tắt.
+
 ## Kiểm thử
 
 ```bash
 npm test            # unit test
 npm run test:e2e    # e2e trên PostgreSQL thật, DB riêng `datve_nest_test`
-npm run lint
+npm run lint:check   # eslint không tự sửa (dùng trong CI); npm run lint để tự sửa
 ```
 
 E2E tự tạo và migrate database test (tên phải chứa `test`, đổi bằng `TEST_DB_NAME`), và `TRUNCATE` dữ liệu giữa các test nên **không bao giờ** trỏ vào database thật.

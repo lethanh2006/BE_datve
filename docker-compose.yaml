@@ -1,3 +1,6 @@
+# Dev:   docker compose up -d                  -> chỉ PostgreSQL (chạy API bằng npm run start:dev)
+# Chạy cả API trong container: docker compose --profile app up -d --build
+#        (cần đặt JWT_SECRET trong .env hoặc môi trường)
 services:
   postgres:
     image: postgres:18
@@ -16,6 +19,28 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  api:
+    profiles: ["app"]
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-datve_db}
+      DB_USERNAME: ${DB_USERNAME:-datve_user}
+      DB_PASSWORD: ${DB_PASSWORD:-local_dev_only_12345}
+      JWT_SECRET: ${JWT_SECRET:?Cần đặt JWT_SECRET (openssl rand -hex 32)}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    # Áp dụng migration rồi mới nhận request
+    command: ["sh", "-c", "node scripts/migrate.js && node dist/main"]
+    ports:
+      - "127.0.0.1:8080:8080"
 
 volumes:
   postgres_data:
