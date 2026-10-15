@@ -78,9 +78,10 @@ export class EventService {
 
   async listCategories(): Promise<string[]> {
     const rows = await this.dataSource.query<{ category: string }[]>(
-      `SELECT DISTINCT category FROM events WHERE category IS NOT NULL ORDER BY category`,
+      `SELECT DISTINCT category FROM events WHERE category IS NOT NULL`,
     );
-    return rows.map((r) => r.category);
+    // Thứ tự tiếng Việt không phụ thuộc locale/collation của máy chạy PostgreSQL.
+    return rows.map((r) => r.category).sort((a, b) => a.localeCompare(b, 'vi'));
   }
 
   async exists(id: number): Promise<boolean> {

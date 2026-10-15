@@ -177,9 +177,10 @@ describe('Danh mục sự kiện (e2e)', () => {
 
   it('GET /api/events/categories liệt kê thể loại không trùng, đã sắp xếp', async () => {
     await ds.query(`INSERT INTO events (name, venue, category) VALUES
-      ('a', 'v', 'Thể thao'), ('b', 'v', 'Âm nhạc'), ('c', 'v', 'Âm nhạc'), ('d', 'v', NULL)`);
+      ('a', 'v', 'Thể thao'), ('b', 'v', 'Âm nhạc'), ('c', 'v', 'Âm nhạc'), ('d', 'v', NULL),
+      ('e', 'v', 'Đối thoại'), ('f', 'v', 'Workshop')`);
     const res = await http().get('/api/events/categories').expect(200);
-    expect(res.body).toEqual(['Âm nhạc', 'Thể thao']);
+    expect(res.body).toEqual(['Âm nhạc', 'Đối thoại', 'Thể thao', 'Workshop']);
   });
 
   describe('suất diễn và ghế', () => {
