@@ -1,8 +1,9 @@
+# Bản NestJS được giữ để tham khảo; bản đang deploy là backend Java (repo BE_ticket).
 # Render Blueprint: New > Blueprint > chọn repo này > Apply.
 # Database là PostgreSQL ngoài (Neon): nhập DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD một lần trên dashboard.
 services:
   - type: web
-    name: datve-lethanh-api
+    name: datve-nestjs-lethanh-api
     runtime: docker
     plan: free
     region: singapore
