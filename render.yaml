@@ -1,0 +1,47 @@
+# Render Blueprint: New > Blueprint > chọn repo này > Apply.
+# Database là PostgreSQL ngoài (Neon): nhập DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD một lần trên dashboard.
+services:
+  - type: web
+    name: datve-lethanh-api
+    runtime: docker
+    plan: free
+    region: singapore
+    # Chạy migration (idempotent) rồi mới khởi động API.
+    dockerCommand: sh -c "node scripts/migrate.js && node dist/main"
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN_SECONDS
+        value: "86400"
+      - key: CORS_ORIGINS
+        value: https://datve-lethanh.vercel.app
+      - key: APP_URL
+        value: https://datve-lethanh.vercel.app
+      - key: TRUST_PROXY
+        value: "true"
+      - key: PAYMENT_ALLOW_SIMULATION
+        value: "true"
+      - key: SCHEDULER_ENABLED
+        value: "true"
+      - key: SWAGGER_ENABLED
+        value: "true"
+      - key: APP_TIME_ZONE
+        value: Asia/Ho_Chi_Minh
+      - key: REFUND_WINDOW_HOURS
+        value: "24"
+      - key: LOG_REQUESTS
+        value: "true"

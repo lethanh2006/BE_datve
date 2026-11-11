@@ -134,8 +134,10 @@ export class SeatEventsService implements OnModuleInit, OnModuleDestroy {
       username?: string;
       password?: unknown;
       database?: string;
+      ssl?: boolean | { rejectUnauthorized?: boolean };
     };
     const client = new Client({
+      ssl: o.ssl,
       host: o.host,
       port: o.port,
       user: o.username,

@@ -28,6 +28,11 @@ import { ShowtimeModule } from './showtime/showtime.module';
         database: config.get('DB_NAME', 'datve_db'),
         username: config.get('DB_USERNAME', 'datve_user'),
         password: config.get('DB_PASSWORD', 'local_dev_only_12345'),
+        // Postgres được quản lý (Neon, RDS...) bắt buộc TLS; local Docker thì không.
+        ssl:
+          config.get('DB_SSL') === 'true'
+            ? { rejectUnauthorized: true }
+            : undefined,
         autoLoadEntities: true,
         synchronize: false, // schema do migration SQL quản lý
       }),

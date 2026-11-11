@@ -1,6 +1,11 @@
 // Tạo dữ liệu mẫu để dev/demo: 1 admin, 1 khách, và vài sự kiện kèm suất diễn + ghế.
 // Chạy lại nhiều lần an toàn: tài khoản và sự kiện đã có (theo email/tên) sẽ được bỏ qua.
-require('dotenv').config({ quiet: true });
+// dotenv chỉ có ở môi trường dev; trong container biến môi trường đã được nền tảng cấp sẵn.
+try {
+  require('dotenv').config({ quiet: true });
+} catch {
+  /* production image: no dotenv */
+}
 const { Client } = require('pg');
 const { hashSync } = require('bcryptjs');
 
@@ -48,6 +53,7 @@ const sections = (base) => [
     database: process.env.DB_NAME || 'datve_db',
     user: process.env.DB_USERNAME || 'datve_user',
     password: process.env.DB_PASSWORD || 'local_dev_only_12345',
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : undefined,
   });
   await client.connect();
   try {

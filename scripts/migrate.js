@@ -3,7 +3,12 @@
 // - Nếu database còn lịch sử Flyway của bản Java (flyway_schema_history), các migration
 //   Flyway đã áp dụng sẽ được ghi nhận là đã chạy để không tạo lại bảng.
 // - MIGRATE_CREATE_DB=true: tự tạo database nếu chưa tồn tại (dùng cho test/CI).
-require('dotenv').config({ quiet: true });
+// dotenv chỉ có ở môi trường dev; trong container biến môi trường đã được nền tảng cấp sẵn.
+try {
+  require('dotenv').config({ quiet: true });
+} catch {
+  /* production image: no dotenv */
+}
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
@@ -14,6 +19,7 @@ const connection = (database) => ({
   user: process.env.DB_USERNAME || 'datve_user',
   password: process.env.DB_PASSWORD || 'local_dev_only_12345',
   database,
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : undefined,
 });
 
 async function createDatabaseIfMissing(name) {
